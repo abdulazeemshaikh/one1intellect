@@ -3,15 +3,48 @@ export interface NotionPage {
     id: string;
     url: string;
     properties: Record<string, any>;
+    cover?: {
+        type: string;
+        external?: { url: string };
+        file?: { url: string };
+    };
+    icon?: {
+        type: string;
+        emoji?: string;
+        external?: { url: string };
+        file?: { url: string };
+    };
 }
 
 export interface NotionBlock {
     id: string;
     type: string;
+    has_children: boolean;
+    children?: NotionBlock[];
     [key: string]: any;
 }
 
 const NOTION_VERSION = "2022-06-28";
+
+export const getPageDetails = async (pageId: string): Promise<NotionPage | null> => {
+    const apiKey = import.meta.env.VITE_NOTION_API_KEY;
+    if (!apiKey || apiKey.includes('PLACEHOLDER')) return null;
+
+    try {
+        const response = await fetch(`/api/notion/pages/${pageId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Notion-Version': NOTION_VERSION
+            }
+        });
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (e) {
+        console.error("Error fetching page details", e);
+        return null;
+    }
+};
 
 export const searchNotionDatabase = async (query: string): Promise<NotionPage[]> => {
     const apiKey = import.meta.env.VITE_NOTION_API_KEY;
@@ -106,19 +139,27 @@ export const getPageBlocks = async (blockId: string): Promise<NotionBlock[]> => 
         const data = await response.json();
         const blocks = data.results as NotionBlock[];
 
-        // Fetch children for blocks that have them (like toggles, nested lists)
-        // For breadcrumbs/ToC we mainly need top-level headings, but for "full replica" we might need more.
-        // For now, let's keep it to top level to avoid rate limits, but handle main types.
+        // For nesting (like columns or toggles), we fetch one level deeper automatically for better replica
+        const blocksWithChildren = await Promise.all(blocks.map(async (block) => {
+            if (block.has_children && (block.type === 'column_list' || block.type === 'column' || block.type === 'toggle' || block.type === 'callout')) {
+                try {
+                    const children = await getPageBlocks(block.id);
+                    return { ...block, children };
+                } catch (e) {
+                    return block;
+                }
+            }
+            return block;
+        }));
 
-        return blocks;
+        return blocksWithChildren;
 
     } catch (e) {
         console.error("Error fetching page blocks", e);
         return [];
     }
-}
+};
 
-// Old method for compatibility if used elsewhere, but redirected to content extraction
 export const getPageContent = async (pageId: string): Promise<string> => {
     const blocks = await getPageBlocks(pageId);
     return blocks.map((block: any) => {

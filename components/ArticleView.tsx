@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { SearchResultItem } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Calendar, Network, List, ChevronRight } from 'lucide-react';
-import { getPageBlocks, NotionBlock } from '../services/notionService';
+import { ArrowLeft, Calendar, Network, List, ChevronRight, File, ExternalLink, Image as ImageIcon } from 'lucide-react';
+import { getPageBlocks, getPageDetails, NotionBlock, NotionPage } from '../services/notionService';
 import mermaid from 'mermaid';
 
 interface ArticleViewProps {
@@ -66,15 +66,37 @@ const renderRichText = (richText: any[]) => {
     });
 };
 
-// Block Renderer
+// Media URL Extractor
+const getMediaUrl = (data: any) => {
+    if (!data) return "";
+    if (data.type === 'external') return data.external.url;
+    if (data.type === 'file') return data.file.url;
+    return "";
+};
+
+// Block Renderer Component (to support recursion)
 const NotionBlockRenderer: React.FC<{ block: NotionBlock }> = ({ block }) => {
     const type = block.type;
     const data = block[type];
     if (!data) return null;
 
+    const renderChildren = () => {
+        if (!block.children || block.children.length === 0) return null;
+        return (
+            <div className="nested-blocks mt-4 pl-4 border-l border-black/5 dark:border-white/5">
+                {block.children.map(child => <NotionBlockRenderer key={child.id} block={child} />)}
+            </div>
+        );
+    };
+
     switch (type) {
         case 'paragraph':
-            return <p className="text-lg leading-8 text-ink/80 mb-6">{renderRichText(data.rich_text)}</p>;
+            return (
+                <div className="mb-6">
+                    <p className="text-lg leading-8 text-ink/80">{renderRichText(data.rich_text)}</p>
+                    {renderChildren()}
+                </div>
+            );
         case 'heading_1':
             return <h1 id={block.id} className="text-4xl font-bold mt-12 mb-6 text-ink border-b border-black/5 dark:border-white/5 pb-2">{renderRichText(data.rich_text)}</h1>;
         case 'heading_2':
@@ -83,16 +105,46 @@ const NotionBlockRenderer: React.FC<{ block: NotionBlock }> = ({ block }) => {
             return <h3 id={block.id} className="text-2xl font-bold mt-8 mb-4 text-ink">{renderRichText(data.rich_text)}</h3>;
         case 'bulleted_list_item':
             return (
-                <li className="ml-6 text-lg text-ink/80 mb-2 list-disc marker:text-subtle">
-                    {renderRichText(data.rich_text)}
-                </li>
+                <div className="mb-2">
+                    <li className="ml-6 text-lg text-ink/80 list-disc marker:text-subtle">
+                        {renderRichText(data.rich_text)}
+                    </li>
+                    {renderChildren()}
+                </div>
             );
         case 'numbered_list_item':
             return (
-                <li className="ml-6 text-lg text-ink/80 mb-2 list-decimal marker:text-subtle">
-                    {renderRichText(data.rich_text)}
-                </li>
+                <div className="mb-2">
+                    <li className="ml-6 text-lg text-ink/80 list-decimal marker:text-subtle">
+                        {renderRichText(data.rich_text)}
+                    </li>
+                    {renderChildren()}
+                </div>
             );
+        case 'toggle':
+            return (
+                <details className="group mb-4 bg-black/[0.02] dark:bg-white/[0.02] rounded-xl p-4 transition-all">
+                    <summary className="text-lg font-medium cursor-pointer list-none flex items-center gap-2">
+                        <ChevronRight className="w-4 h-4 group-open:rotate-90 transition-transform" />
+                        {renderRichText(data.rich_text)}
+                    </summary>
+                    <div className="mt-4 pl-6">
+                        {renderChildren()}
+                    </div>
+                </details>
+            );
+        case 'column_list':
+            return (
+                <div className="flex flex-col md:flex-row gap-8 my-8">
+                    {block.children?.map(col => (
+                        <div key={col.id} className="flex-1 min-w-0">
+                            <NotionBlockRenderer block={col} />
+                        </div>
+                    ))}
+                </div>
+            );
+        case 'column':
+            return <div className="column-content">{block.children?.map(child => <NotionBlockRenderer key={child.id} block={child} />)}</div>;
         case 'code':
             if (data.language === 'mermaid') {
                 const code = data.rich_text.map((t: any) => t.plain_text).join('');
@@ -109,16 +161,46 @@ const NotionBlockRenderer: React.FC<{ block: NotionBlock }> = ({ block }) => {
                 </div>
             );
         case 'image':
-            const url = data.type === 'external' ? data.external.url : data.file.url;
+            const imageUrl = getMediaUrl(data);
             return (
-                <figure className="my-10">
-                    <img src={url} alt="Notion Image" className="rounded-2xl w-full shadow-lg border border-black/5 dark:border-white/5" />
+                <figure className="my-10 group relative">
+                    <div className="absolute inset-0 bg-black/5 dark:bg-white/5 animate-pulse rounded-2xl -z-10" />
+                    <img
+                        src={imageUrl}
+                        alt="Notion Content"
+                        className="rounded-2xl w-full shadow-lg border border-black/5 dark:border-white/10 transition-transform duration-500 group-hover:scale-[1.01]"
+                        onError={(e) => {
+                            console.error("Image failed to load:", imageUrl);
+                            // Hide broken image or show placeholder
+                            const target = e.target as HTMLImageElement;
+                            target.parentElement?.classList.add('hidden');
+                        }}
+                    />
                     {data.caption && data.caption.length > 0 && (
-                        <figcaption className="text-center text-sm text-subtle mt-3 font-medium italic">
+                        <figcaption className="text-center text-sm text-subtle mt-4 font-medium italic px-4">
                             {renderRichText(data.caption)}
                         </figcaption>
                     )}
                 </figure>
+            );
+        case 'file':
+        case 'video':
+            const fileUrl = getMediaUrl(data);
+            const isVideo = type === 'video';
+            if (isVideo) {
+                return (
+                    <video controls className="w-full rounded-2xl my-8 bg-black/5 shadow-lg border border-black/5">
+                        <source src={fileUrl} />
+                        Your browser does not support the video tag.
+                    </video>
+                );
+            }
+            return (
+                <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 bg-black/5 dark:bg-white/5 rounded-xl my-6 border border-black/5 dark:border-white/10 hover:bg-black/10 transition-colors">
+                    <File className="w-5 h-5 text-subtle" />
+                    <span className="text-sm font-medium">{data.caption?.[0]?.plain_text || "View attached file"}</span>
+                    <ExternalLink className="w-4 h-4 ml-auto text-subtle/50" />
+                </a>
             );
         case 'quote':
             return (
@@ -130,9 +212,14 @@ const NotionBlockRenderer: React.FC<{ block: NotionBlock }> = ({ block }) => {
             return <hr className="my-12 border-t border-black/5 dark:border-white/5" />;
         case 'callout':
             return (
-                <div className="flex gap-4 p-6 bg-blue-500/5 dark:bg-blue-400/5 border border-blue-500/10 rounded-2xl my-8">
-                    {data.icon && <span className="text-2xl">{data.icon.emoji || 'ℹ️'}</span>}
-                    <div className="text-lg leading-relaxed">{renderRichText(data.rich_text)}</div>
+                <div className="flex flex-col gap-4 p-6 bg-blue-500/5 dark:bg-blue-400/5 border border-blue-500/10 rounded-2xl my-8">
+                    <div className="flex items-start gap-4">
+                        {data.icon && <span className="text-2xl pt-1">{data.icon.emoji || 'ℹ️'}</span>}
+                        <div className="text-lg leading-relaxed flex-1">{renderRichText(data.rich_text)}</div>
+                    </div>
+                    <div className="pl-12">
+                        {renderChildren()}
+                    </div>
                 </div>
             );
         default:
@@ -142,18 +229,27 @@ const NotionBlockRenderer: React.FC<{ block: NotionBlock }> = ({ block }) => {
 
 const ArticleView: React.FC<ArticleViewProps> = ({ article, onBack }) => {
     const [blocks, setBlocks] = useState<NotionBlock[]>([]);
+    const [pageDetails, setPageDetails] = useState<NotionPage | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeSection, setActiveSection] = useState<string>("");
     const contentRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        const loadBlocks = async () => {
+        const loadPageData = async () => {
             setLoading(true);
-            const data = await getPageBlocks(article.id);
-            setBlocks(data);
+            try {
+                const [blocksData, detailsData] = await Promise.all([
+                    getPageBlocks(article.id),
+                    getPageDetails(article.id)
+                ]);
+                setBlocks(blocksData);
+                setPageDetails(detailsData);
+            } catch (e) {
+                console.error("Failed to load page data", e);
+            }
             setLoading(false);
         };
-        loadBlocks();
+        loadPageData();
     }, [article.id]);
 
     const headings = blocks.filter(b => b.type.startsWith('heading_')).map(b => ({
@@ -162,10 +258,25 @@ const ArticleView: React.FC<ArticleViewProps> = ({ article, onBack }) => {
         level: parseInt(b.type.split('_')[1])
     }));
 
+    // Add nested headings if needed (one level deep)
+    blocks.forEach(block => {
+        if (block.children) {
+            block.children.forEach(child => {
+                if (child.type.startsWith('heading_')) {
+                    headings.push({
+                        id: child.id,
+                        text: child[child.type].rich_text.map((t: any) => t.plain_text).join(''),
+                        level: parseInt(child.type.split('_')[1])
+                    });
+                }
+            });
+        }
+    });
+
     const scrollToHeading = (id: string) => {
         const element = document.getElementById(id);
         if (element) {
-            const offset = 100; // Adjusted for header
+            const offset = 100;
             const bodyRect = document.body.getBoundingClientRect().top;
             const elementRect = element.getBoundingClientRect().top;
             const elementPosition = elementRect - bodyRect;
@@ -179,8 +290,10 @@ const ArticleView: React.FC<ArticleViewProps> = ({ article, onBack }) => {
         }
     };
 
+    const coverImageUrl = pageDetails?.cover ? getMediaUrl(pageDetails.cover) : "";
+
     return (
-        <div className="w-full max-w-7xl mx-auto px-6 py-12 flex flex-col md:flex-row gap-12 relative">
+        <div className="w-full max-w-7xl mx-auto px-6 py-12 flex flex-col md:flex-row gap-12 relative animate-fade-in">
 
             {/* Sidebar ToC */}
             <aside className="hidden md:block w-72 shrink-0 h-fit sticky top-32">
@@ -239,8 +352,15 @@ const ArticleView: React.FC<ArticleViewProps> = ({ article, onBack }) => {
                     Back to Results
                 </button>
 
-                {/* Head Part */}
+                {/* Cover Image & Head Part */}
                 <div className="mb-16">
+                    {coverImageUrl && (
+                        <div className="w-full h-64 md:h-96 rounded-3xl overflow-hidden mb-12 shadow-xl border border-black/5 dark:border-white/10 relative">
+                            <img src={coverImageUrl} alt="Page Cover" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                        </div>
+                    )}
+
                     <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold uppercase tracking-[0.2em] text-subtle/60 mb-6">
                         <span className="flex items-center gap-2 bg-black/5 dark:bg-white/10 px-3 py-1.5 rounded-full text-ink/70">
                             <Network className="w-3.5 h-3.5" />
@@ -254,9 +374,15 @@ const ArticleView: React.FC<ArticleViewProps> = ({ article, onBack }) => {
                         )}
                     </div>
 
-                    <h1 className="text-4xl md:text-6xl font-sans font-bold text-ink leading-[1.1] mb-8 tracking-tight">
-                        {article.title}
-                    </h1>
+                    <div className="flex items-start gap-4 mb-8">
+                        {pageDetails?.icon?.emoji && <span className="text-5xl md:text-6xl">{pageDetails.icon.emoji}</span>}
+                        {pageDetails?.icon?.type !== 'emoji' && pageDetails?.icon && (
+                            <img src={getMediaUrl(pageDetails.icon)} className="w-16 h-16 rounded-xl object-cover" alt="icon" />
+                        )}
+                        <h1 className="text-4xl md:text-6xl font-sans font-bold text-ink leading-[1.1] tracking-tight">
+                            {article.title}
+                        </h1>
+                    </div>
 
                     <AnimatePresence>
                         {article.summary && article.summary !== "No summary available." && (
@@ -275,8 +401,8 @@ const ArticleView: React.FC<ArticleViewProps> = ({ article, onBack }) => {
                 <div className="prose prose-xl prose-neutral dark:prose-invert max-w-none font-serif">
                     {loading ? (
                         <div className="space-y-6">
-                            {[...Array(6)].map((_, i) => (
-                                <div key={i} className={`h-4 bg-black/5 dark:bg-white/5 rounded-full animate-pulse transition-all`} style={{ width: `${Math.random() * 40 + 60}%` }}></div>
+                            {[...Array(8)].map((_, i) => (
+                                <div key={i} className={`h-4 bg-black/5 dark:bg-white/5 rounded-full animate-pulse`} style={{ width: `${Math.random() * 40 + 60}%` }}></div>
                             ))}
                         </div>
                     ) : (
@@ -286,15 +412,48 @@ const ArticleView: React.FC<ArticleViewProps> = ({ article, onBack }) => {
                             ) : (
                                 <div className="py-20 text-center opacity-30 select-none">
                                     <List className="w-12 h-12 mx-auto mb-4" />
-                                    <p className="font-sans font-medium">This article has no detailed content yet.</p>
+                                    <p className="font-sans font-medium text-lg">This article has no detailed content yet.</p>
                                 </div>
                             )}
                         </div>
                     )}
                 </div>
 
+                {/* Files & Media Section (If any separate media property exists) */}
+                {!loading && pageDetails?.properties && Object.entries(pageDetails.properties).some(([key, prop]: any) => prop.type === 'files' && prop.files.length > 0) && (
+                    <div className="mt-20 pt-12 border-t border-black/5 dark:border-white/5">
+                        <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                            <ImageIcon className="w-5 h-5" />
+                            Attached Media
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                            {Object.entries(pageDetails.properties).map(([key, prop]: any) => {
+                                if (prop.type === 'files') {
+                                    return prop.files.map((file: any, idx: number) => {
+                                        const url = getMediaUrl(file);
+                                        const isImg = url.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+                                        return (
+                                            <a key={`${key}-${idx}`} href={url} target="_blank" rel="noopener noreferrer" className="overflow-hidden rounded-2xl border border-black/5 dark:border-white/10 hover:shadow-lg transition-shadow bg-black/5 group">
+                                                {isImg ? (
+                                                    <img src={url} alt={key} className="w-full h-40 object-cover group-hover:scale-105 transition-transform" />
+                                                ) : (
+                                                    <div className="w-full h-40 flex flex-col items-center justify-center gap-2 p-4 text-center">
+                                                        <File className="w-8 h-8 text-subtle/50" />
+                                                        <span className="text-xs font-medium line-clamp-2">{file.name || key}</span>
+                                                    </div>
+                                                )}
+                                            </a>
+                                        );
+                                    });
+                                }
+                                return null;
+                            })}
+                        </div>
+                    </div>
+                )}
+
                 {/* Footer Spacer */}
-                <div className="h-32" />
+                <div className="h-48" />
             </motion.main>
 
         </div>
