@@ -3,8 +3,10 @@ export interface NotionPage {
     id: string;
     url: string;
     properties: Record<string, any>;
-    content?: string; // Content can be fetched later or eagerly
+    content?: string;
 }
+
+const NOTION_VERSION = "2022-06-28";
 
 export const searchNotionDatabase = async (query: string): Promise<NotionPage[]> => {
     const apiKey = import.meta.env.VITE_NOTION_API_KEY;
@@ -21,6 +23,7 @@ export const searchNotionDatabase = async (query: string): Promise<NotionPage[]>
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json',
+                'Notion-Version': NOTION_VERSION
             },
             body: JSON.stringify({
                 filter: {
@@ -58,26 +61,20 @@ export const getDatabaseStats = async (): Promise<{ count: number }> => {
     if (!apiKey || apiKey.includes('PLACEHOLDER')) return { count: 0 };
 
     try {
-        // Query with minimal page_size just to get structure, but wait.. Notion API doesn't give total count easily.
-        // We have to iterate or make an empty query.
-        // For efficiency in this prototype, let's fetch with a reasonable limit.
         const response = await fetch(`/api/notion/databases/${dbId}/query`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json',
+                'Notion-Version': NOTION_VERSION
             },
             body: JSON.stringify({
-                page_size: 100 // Limit for now to get a "count".
+                page_size: 100
             })
         });
 
         if (!response.ok) return { count: 0 };
         const data = await response.json();
-        // data.results.length is the count of this page.
-        // Ideally we check has_more to see if there are more.
-        // For prototype, returning results.length is acceptable if DB is small.
-        // Better: We can rely on a dedicated "stats" property if we had one, but we don't.
         return { count: data.results.length };
 
     } catch (e) {
@@ -95,6 +92,7 @@ export const getPageContent = async (pageId: string): Promise<string> => {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
+                'Notion-Version': NOTION_VERSION
             }
         });
 
@@ -107,7 +105,7 @@ export const getPageContent = async (pageId: string): Promise<string> => {
                 return block[type].rich_text.map((t: any) => t.plain_text).join('');
             }
             return "";
-        }).join('\n\n'); // Double newline for paragraphs
+        }).join('\n\n');
 
     } catch (e) {
         console.error("Error fetching page content", e);

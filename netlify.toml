@@ -1,0 +1,10 @@
+[[redirects]]
+  from = "/api/notion/*"
+  to = "https://api.notion.com/v1/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
