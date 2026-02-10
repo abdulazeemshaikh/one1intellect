@@ -121,11 +121,10 @@ function App() {
             href="https://calendly.com/l-f/free-consultation"
             target="_blank"
             rel="noopener noreferrer"
-            className="group relative flex items-center gap-2 px-5 py-2.5 rounded-full bg-ink text-paper text-[11px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-xl shadow-ink/10 overflow-hidden"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/80 dark:bg-white/[0.05] backdrop-blur-xl border border-black/[0.08] dark:border-white/[0.1] text-ink text-[10px] font-bold uppercase tracking-[0.2em] transition-colors duration-300"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer" />
-            <Sparkles className="w-3.5 h-3.5" />
-            <span className="relative z-10">Supercharged ✦ AI infrastructure</span>
+            <Sparkles className="w-3.5 h-3.5 text-ink/40" />
+            <span>Supercharged ✦ AI infrastructure</span>
           </a>
 
           <button
