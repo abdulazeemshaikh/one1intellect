@@ -40,7 +40,7 @@ const notionFetch = async (path: string, options: RequestInit = {}) => {
         ...(options.headers as Record<string, string>),
     };
 
-    const response = await fetch(`/api/notion${path}`, {
+    const response = await fetch(`/api/notion-proxy${path}`, {
         ...options,
         headers,
     });
