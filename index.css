@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-paper: #ffffff;
+  --color-ink: #000000;
+  --color-subtle: #666666;
+  --color-border: rgba(0, 0, 0, 0.06);
+}
+
+.dark {
+  --color-paper: #000000;
+  --color-ink: #ffffff;
+  --color-subtle: #888888;
+  --color-border: rgba(255, 255, 255, 0.1);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+html {
+  scroll-behavior: smooth;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
