@@ -1,7 +1,33 @@
 import React from 'react';
 import { SearchResultItem } from '../types';
 import { motion } from 'framer-motion';
-import { ArrowUpRight, Calendar, Tag } from 'lucide-react';
+import { Calendar, Network, Type, Lightbulb, Footprints, BookOpen, FlaskConical, Tag } from 'lucide-react';
+
+// Map category names to their corresponding icons
+const getCategoryIcon = (category: string) => {
+    const categoryLower = category.toLowerCase();
+    
+    if (categoryLower.includes('knowledge') || categoryLower.includes('pedia') || categoryLower.includes('encyclopedia')) {
+        return Network;
+    }
+    if (categoryLower.includes('language') || categoryLower.includes('dictionary') || categoryLower.includes('meaning')) {
+        return Type;
+    }
+    if (categoryLower.includes('insight') || categoryLower.includes('thinking') || categoryLower.includes('idea')) {
+        return Lightbulb;
+    }
+    if (categoryLower.includes('guide') || categoryLower.includes('how') || categoryLower.includes('practical')) {
+        return Footprints;
+    }
+    if (categoryLower.includes('religious') || categoryLower.includes('spiritual') || categoryLower.includes('sacred')) {
+        return BookOpen;
+    }
+    if (categoryLower.includes('research') || categoryLower.includes('paper') || categoryLower.includes('study') || categoryLower.includes('science')) {
+        return FlaskConical;
+    }
+    
+    return Tag; // Default fallback
+};
 
 interface ResultViewProps {
     results: SearchResultItem[];
@@ -11,66 +37,51 @@ interface ResultViewProps {
 
 const ResultView: React.FC<ResultViewProps> = ({ results, onClear, onSelectArticle }) => {
     return (
-        <div className="w-full max-w-4xl mx-auto px-4 pb-20">
-
-            <div className="flex justify-between items-center mb-6">
-                <p className="text-sm text-subtle font-medium">Found {results.length} verified articles</p>
-                <button
-                    onClick={onClear}
-                    className="text-[10px] font-bold text-subtle hover:text-ink uppercase tracking-widest transition-colors"
-                >
-                    Clear Search
-                </button>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4">
+        <div className="w-full max-w-4xl mx-auto px-2 xs:px-3 sm:px-4 pb-12 xs:pb-16 sm:pb-20">
+            <div className="grid grid-cols-1 gap-2 xs:gap-3">
                 {results.map((item, index) => (
                     <motion.div
                         key={item.id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: index * 0.05 }}
-                        className="group relative bg-white/60 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-xl p-6 hover:shadow-lg hover:border-ink/20 transition-all duration-300 cursor-pointer overflow-hidden backdrop-blur-sm"
+                        className="group relative bg-white/50 dark:bg-white/[0.03] backdrop-blur-2xl border border-white/30 dark:border-white/[0.06] rounded-lg xs:rounded-xl p-3 xs:p-4 sm:p-5 hover:bg-white/70 dark:hover:bg-white/[0.05] hover:border-black/10 dark:hover:border-white/10 transition-all duration-300 cursor-pointer active:scale-[0.99]"
                         onClick={() => onSelectArticle(item)}
                     >
-                        <div className="absolute inset-0 bg-gradient-to-br from-transparent to-black/[0.02] dark:to-white/[0.02] opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                        <div className="relative z-10">
-                            <div className="flex justify-between items-start mb-2">
-                                <h3 className="font-sans font-semibold text-xl text-ink group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                    {item.title}
-                                </h3>
-                                <ArrowUpRight className="w-5 h-5 text-subtle opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
-                            </div>
-
-                            <div className="flex items-center gap-4 text-xs text-subtle mb-3 uppercase tracking-wide font-medium">
-                                <span className="flex items-center gap-1 bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded">
-                                    <Tag className="w-3 h-3" />
-                                    {item.category}
-                                </span>
-                                {item.createdDate && (
-                                    <span className="flex items-center gap-1">
-                                        <Calendar className="w-3 h-3" />
-                                        {new Date(item.createdDate).toLocaleDateString()}
-                                    </span>
-                                )}
-                            </div>
-
-                            <p className="text-base text-subtle/80 line-clamp-2 leading-relaxed font-serif">
-                                {item.summary}
-                            </p>
-
-                            <div className="mt-4 pt-3 border-t border-dashed border-black/5 dark:border-white/5 flex items-center gap-2">
-                                <span className="text-[9px] uppercase tracking-widest text-subtle/60 font-semibold">Verified Entry</span>
-                            </div>
+                        <div className="mb-1.5 xs:mb-2">
+                            <h3 className="font-sans font-semibold text-base xs:text-lg text-ink transition-colors line-clamp-2">
+                                {item.title}
+                            </h3>
                         </div>
+
+                        <div className="flex flex-wrap items-center gap-2 xs:gap-3 text-[9px] xs:text-[10px] text-subtle/60 mb-1.5 xs:mb-2 uppercase tracking-wide font-medium">
+                            {(() => {
+                                const CategoryIcon = getCategoryIcon(item.category);
+                                return (
+                                    <span className="flex items-center gap-1">
+                                        <CategoryIcon className="w-2 h-2 xs:w-2.5 xs:h-2.5" />
+                                        {item.category}
+                                    </span>
+                                );
+                            })()}
+                            {item.createdDate && (
+                                <span className="flex items-center gap-1">
+                                    <Calendar className="w-2 h-2 xs:w-2.5 xs:h-2.5" />
+                                    {new Date(item.createdDate).toLocaleDateString()}
+                                </span>
+                            )}
+                        </div>
+
+                        <p className="text-xs xs:text-sm text-subtle/70 line-clamp-2 leading-relaxed font-sans">
+                            {item.summary}
+                        </p>
                     </motion.div>
                 ))}
             </div>
 
             {results.length === 0 && (
-                <div className="text-center py-20 text-subtle">
-                    <p>No matching articles found in the knowledge base.</p>
+                <div className="text-center py-12 xs:py-16 sm:py-20 text-subtle">
+                    <p className="text-sm xs:text-base">No matching articles found in the knowledge base.</p>
                 </div>
             )}
         </div>

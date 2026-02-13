@@ -2,7 +2,7 @@ import React from 'react';
 
 const FooterColumn: React.FC<{ title: string; links: string[] }> = ({ title, links }) => (
   <div className="flex flex-col gap-3">
-    <h4 className="font-serif font-bold text-ink text-base mb-2">{title}</h4>
+    <h4 className="font-sans font-bold text-ink text-base mb-2">{title}</h4>
     <ul className="space-y-2">
       {links.map((link) => (
         <li key={link}>
@@ -20,9 +20,9 @@ const Footer: React.FC = () => {
         <div className="col-span-2 md:col-span-1">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-6 h-6 border border-ink flex items-center justify-center rounded-sm">
-                <span className="font-serif font-bold text-xs">1</span>
+                <span className="font-sans font-bold text-xs">1</span>
             </div>
-            <h5 className="font-serif font-bold text-lg text-ink">ONE1 INTELLECT</h5>
+            <h5 className="font-sans font-bold text-lg text-ink">ONE1 INTELLECT</h5>
           </div>
           <p className="text-sm text-subtle leading-relaxed pr-8">
             The front door to human understanding. verified, versioned, and strictly neutral.

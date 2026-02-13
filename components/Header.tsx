@@ -6,7 +6,7 @@ const Header: React.FC = () => {
     <header className="w-full py-6 px-6 md:px-12 flex justify-between items-center bg-paper sticky top-0 z-50 border-b border-transparent transition-colors duration-300">
       <div className="flex items-center gap-2 cursor-pointer group" onClick={() => window.location.reload()}>
         <div className="w-8 h-8 border border-ink flex items-center justify-center rounded-sm group-hover:bg-ink group-hover:text-paper transition-colors">
-            <span className="font-serif font-bold text-lg">1</span>
+            <span className="font-sans font-bold text-lg">1</span>
         </div>
         {/* Main title moved to HeroSearch for search-engine layout */}
       </div>
