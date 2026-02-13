@@ -28,15 +28,16 @@ const NOTION_VERSION = "2022-06-28";
 
 // Helper to fetch through proxy with correct headers
 const notionFetch = async (path: string, options: RequestInit = {}) => {
-    const apiKey = import.meta.env.VITE_NOTION_API_KEY;
+    const apiKey = (import.meta.env.VITE_NOTION_API_KEY || '').trim();
     if (!apiKey || apiKey.includes('PLACEHOLDER')) {
         throw new Error('Notion API Key is missing');
     }
 
-    const headers = {
+    const headers: Record<string, string> = {
         'Authorization': `Bearer ${apiKey}`,
         'Notion-Version': NOTION_VERSION,
-        ...options.headers,
+        'Content-Type': 'application/json',
+        ...(options.headers as Record<string, string>),
     };
 
     const response = await fetch(`/api/notion${path}`, {
@@ -46,7 +47,13 @@ const notionFetch = async (path: string, options: RequestInit = {}) => {
 
     if (!response.ok) {
         const errText = await response.text();
-        console.error(`Notion API Error (${path}):`, errText);
+        console.error(`Notion API Error (${path}) [${response.status}]:`, errText);
+        try {
+            const errJson = JSON.parse(errText);
+            if (errJson.message) {
+                console.error("Notion Error Detail:", errJson.message);
+            }
+        } catch (e) { }
         throw new Error(`Notion API Error: ${response.status}`);
     }
 
@@ -63,7 +70,7 @@ export const getPageDetails = async (pageId: string): Promise<NotionPage | null>
 };
 
 export const searchNotionDatabase = async (query: string): Promise<NotionPage[]> => {
-    const dbId = import.meta.env.VITE_NOTION_DB_ID;
+    const dbId = (import.meta.env.VITE_NOTION_DB_ID || '').trim();
     if (!dbId) return [];
 
     try {
@@ -87,7 +94,7 @@ export const searchNotionDatabase = async (query: string): Promise<NotionPage[]>
 };
 
 export const getDatabaseStats = async (): Promise<{ count: number }> => {
-    const dbId = import.meta.env.VITE_NOTION_DB_ID;
+    const dbId = (import.meta.env.VITE_NOTION_DB_ID || '').trim();
     if (!dbId) return { count: 0 };
 
     try {
